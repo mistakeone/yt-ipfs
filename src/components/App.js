@@ -32,11 +32,43 @@ class App extends Component {
   async loadBlockchainData() {
     const web3 = window.web3
     //Load accounts
+    const accounts = await web3.eth.getAccounts()
+    console.log(accounts)
+    this.setState({account: accounts[0]})
     //Add first account the the state
 
     //Get network ID
+    const networkId = await web3.eth.net.getId()
     //Get network data
+    const networkData = DVideo.networks[networkId]
+    if(networkData) {
+      const dvideo = new web3.eth.Contract(DVideo.abi, networkData.address)
+      this.setState({dvideo})
+
+      const videosCount = await dvideo.methods.videoCount().call()
+      this.setState({videosCount})
+
+      //load videos, sort by newest
+      for (var i=videosCount; i>=1; i--){
+        const video = await dvideo.methods.videos(i).call()
+        this.setState({
+          videos: [...this.state.videos, video]
+        })
+      }
+
+      //set latest video with title to view as default
+      const latest = await dvideo.methods.videos(videosCount).call()
+      this.setState({
+        currentHash: latest.hash,
+        currentTitle: latest.title
+      })
+      this.setState({loading:false})
+
+    } else {
+      window.alert('Dvideo contract not deployed to detected network.')
+    }
     //Check if net data exists, then
+    // new web3.eth.Contract(DVideo.abi, DVideo.networks[5777].address)
       //Assign dvideo contract to a variable
       //Add dvideo to the state
 
@@ -54,23 +86,53 @@ class App extends Component {
 
   //Get video
   captureFile = event => {
+    event.preventDefault()
+    const file = event.target.files[0]
+    const reader = new window.FileReader()
+    reader.readAsArrayBuffer(file)
 
+    reader.onloadend = () => {
+      this.setState({buffer:Buffer(reader.result)})
+      console.log('buffer', this.state.buffer)
+    }
   }
 
   //Upload video
   uploadVideo = title => {
+    console.log("IPFS submitting...")
+    //adding to ipfs
+    ipfs.add(this.state.buffer, (error, result) => {
+      console.log('IPFS result', result)
+      if(error) {
+        console.error(error)
+        return
+      }
+      //put on blockchain...
 
+      this.setState({loading:true})
+      this.state.dvideo.methods.uploadVideo(result[0].hash, title).send({from: this.state.account}).on('transactionHash', (hash) => {
+        this.setState({loading: false})
+      })
+    })    
   }
 
   //Change Video
   changeVideo = (hash, title) => {
+    this.setState({'currentHash': hash});
+    this.setState({'currentTitle': title});
 
   }
 
   constructor(props) {
     super(props)
     this.state = {
-      loading: false
+      buffer: null,
+      account: '',
+      dvideo: null,
+      videos: [],
+      loading: true,
+      currentHash: null,
+      currentTitle: null
       //set states
     }
 
@@ -82,11 +144,17 @@ class App extends Component {
       <div>
         <Navbar 
           //Account
+          account={this.state.account}
         />
         { this.state.loading
           ? <div id="loader" className="text-center mt-5"><p>Loading...</p></div>
           : <Main
-              //states&functions
+              videos={this.state.videos}
+              uploadVideo={this.uploadVideo}
+              captureFile={this.captureFile}
+              changeVideo={this.changeVideo}
+              currentHash={this.state.currentHash}
+              currentTitle={this.state.currentTitle}
             />
         }
       </div>
