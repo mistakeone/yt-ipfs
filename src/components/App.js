@@ -35,20 +35,25 @@ class App extends Component {
     const accounts = await web3.eth.getAccounts()
     console.log(accounts)
     this.setState({account: accounts[0]})
-    //Add first account the the state
-
+    
     //Get network ID
     const networkId = await web3.eth.net.getId()
     //Get network data
     const networkData = DVideo.networks[networkId]
+    //Check if net data exists, then
+      //Assign dvideo contract to a variable
+      //Add dvideo to the state
     if(networkData) {
       const dvideo = new web3.eth.Contract(DVideo.abi, networkData.address)
       this.setState({dvideo})
-
+      
+      //Check video amount
+      //Add video amount to the state
       const videosCount = await dvideo.methods.videoCount().call()
       this.setState({videosCount})
-
+      
       //load videos, sort by newest
+      //Iterate throught videos and add them to the state (by newest)
       for (var i=videosCount; i>=1; i--){
         const video = await dvideo.methods.videos(i).call()
         this.setState({
@@ -57,6 +62,7 @@ class App extends Component {
       }
 
       //set latest video with title to view as default
+      //Set loading state to false
       const latest = await dvideo.methods.videos(videosCount).call()
       this.setState({
         currentHash: latest.hash,
@@ -65,23 +71,9 @@ class App extends Component {
       this.setState({loading:false})
 
     } else {
+      //If network data doesn't exisits, log error
       window.alert('Dvideo contract not deployed to detected network.')
     }
-    //Check if net data exists, then
-    // new web3.eth.Contract(DVideo.abi, DVideo.networks[5777].address)
-      //Assign dvideo contract to a variable
-      //Add dvideo to the state
-
-      //Check videoAmounts
-      //Add videAmounts to the state
-
-      //Iterate throught videos and add them to the state (by newest)
-
-
-      //Set latest video and it's title to view as default 
-      //Set loading state to false
-
-      //If network data doesn't exisits, log error
   }
 
   //Get video
@@ -126,6 +118,7 @@ class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
+      //set states
       buffer: null,
       account: '',
       dvideo: null,
@@ -133,10 +126,12 @@ class App extends Component {
       loading: true,
       currentHash: null,
       currentTitle: null
-      //set states
     }
 
     //Bind functions
+    this.uploadVideo = this.uploadVideo.bind(this)
+    this.captureFile = this.captureFile.bind(this)
+    this.changeVideo = this.changeVideo.bind(this)
   }
 
   render() {
